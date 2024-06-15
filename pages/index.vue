@@ -187,7 +187,7 @@ onMounted(() => {
 					<div>Country:</div>
 					<UInput class="w-1/2" v-model="country" />
 				</div>
-				<div class="flex justify-end gap-4 mt-8">
+				<div class="flex flex-wrap justify-end gap-4 mt-8">
 					<UButton size="lg" @click="refresh" :loading="dataLoading"
 						>Refresh Data</UButton
 					>
