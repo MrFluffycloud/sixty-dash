@@ -11,7 +11,7 @@ const country = ref<string>('');
 
 const editing = ref<Record<string, boolean>>({});
 const dataLoading = ref(false);
-const isAppLoading = ref(true);  // New loading state
+const isAppLoading = ref(true);
 
 const userData = ref<User[]>([]);
 const filteredUserData = computed(() => {
@@ -82,9 +82,9 @@ async function refresh() {
 	try {
 		const users = await $fetch('/api/users');
 		userData.value = users;
-		isAppLoading.value = false;  // Set to false once data is successfully loaded
+		isAppLoading.value = false;
 	} catch (e) {
-		console.error(`Error while refreshing: ${e.message || e}`);
+		window.location.reload();
 	} finally {
 		dataLoading.value = false;
 	}
@@ -161,12 +161,20 @@ onMounted(() => {
 </script>
 
 <template>
-	<div v-if="isAppLoading" class="flex items-center justify-center min-h-screen">
+	<div
+		v-if="isAppLoading"
+		class="flex items-center justify-center min-h-screen"
+	>
 		<!-- Add your loading spinner or message here -->
 		<div>Loading...</div>
 	</div>
-	<div v-else class="grid lg:grid-flow-col grid-flow-row gap-4 min-h-screen p-4 font-mono">
-		<div class="relative flex flex-col gap-4 grow p-4 rounded-md border border-dashed border-primary">
+	<div
+		v-else
+		class="grid lg:grid-flow-col grid-flow-row gap-4 min-h-screen p-4 font-mono"
+	>
+		<div
+			class="relative flex flex-col gap-4 grow p-4 rounded-md border border-dashed border-primary"
+		>
 			<div class="flex flex-col gap-4 sticky top-8">
 				<h3 class="font-bold text-2xl underline mb-8">Filters</h3>
 				<div class="flex justify-between">
@@ -194,9 +202,15 @@ onMounted(() => {
 					<UInput class="w-1/2" v-model="country" />
 				</div>
 				<div class="flex flex-wrap justify-end gap-4 mt-8">
-					<UButton size="lg" @click="refresh" :loading="dataLoading">Refresh Data</UButton>
-					<UButton size="lg" @click="clear" :loading="dataLoading">Clear Filters</UButton>
-					<UButton size="lg" @click="downloadCSV" :loading="dataLoading">Download CSV</UButton>
+					<UButton size="lg" @click="refresh" :loading="dataLoading"
+						>Refresh Data</UButton
+					>
+					<UButton size="lg" @click="clear" :loading="dataLoading"
+						>Clear Filters</UButton
+					>
+					<UButton size="lg" @click="downloadCSV" :loading="dataLoading"
+						>Download CSV</UButton
+					>
 				</div>
 			</div>
 		</div>
@@ -205,7 +219,10 @@ onMounted(() => {
 			<div v-else-if="!filteredUserData.length">No data</div>
 			<div v-else class="w-full h-full flex flex-col gap-4">
 				<div class="ml-2 text-xl">{{ filteredUserData.length }} results</div>
-				<div v-for="user in filteredUserData" class="border border-gray-600 rounded-md flex flex-col gap-2 w-full h-max p-4">
+				<div
+					v-for="user in filteredUserData"
+					class="border border-gray-600 rounded-md flex flex-col gap-2 w-full h-max p-4"
+				>
 					<div class="flex items-center justify-between max-w-sm gap-4">
 						Mongo Id:
 						<UInput readonly :value="user._id"></UInput>
@@ -238,9 +255,15 @@ onMounted(() => {
 						Courses:
 						<UInput readonly :value="JSON.stringify(user.courses)"></UInput>
 					</div>
-					<UButton class="w-max" @click="editCourses(user.email)">Edit courses</UButton>
+					<UButton class="w-max" @click="editCourses(user.email)"
+						>Edit courses</UButton
+					>
 
-					<UModal v-model="editing[user.email]" :transition="false" prevent-close>
+					<UModal
+						v-model="editing[user.email]"
+						:transition="false"
+						prevent-close
+					>
 						<UCard>
 							<template #header>Courses</template>
 							<div class="flex flex-col gap-4">
@@ -258,7 +281,8 @@ onMounted(() => {
 										:disabled="!isEditValid"
 										:loading="editSaving"
 										@click="saveEdit"
-										>Save</UButton>
+										>Save</UButton
+									>
 								</div>
 							</div>
 						</UCard>
