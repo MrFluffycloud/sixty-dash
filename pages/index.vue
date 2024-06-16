@@ -77,17 +77,17 @@ function clear() {
 	country.value = '';
 }
 
-function refresh() {
+async function refresh() {
 	dataLoading.value = true;
-	$fetch('/api/users')
-		.then((users) => {
-			userData.value = users;
-		})
-		.catch((e) => alert(`Error while refreshing: ${e.message || e}`))
-		.finally(() => {
-			dataLoading.value = false;
-			isAppLoading.value = false;  // Set to false once data is loaded
-		});
+	try {
+		const users = await $fetch('/api/users');
+		userData.value = users;
+		isAppLoading.value = false;  // Set to false once data is successfully loaded
+	} catch (e) {
+		console.error(`Error while refreshing: ${e.message || e}`);
+	} finally {
+		dataLoading.value = false;
+	}
 }
 
 function editCourses(email: string) {
