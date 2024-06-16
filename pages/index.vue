@@ -84,7 +84,8 @@ async function refresh() {
 		userData.value = users;
 		isAppLoading.value = false;
 	} catch (e) {
-		window.location.reload();
+		console.error(`Error while refreshing: ${e.message || e}`);
+		setInterval(() => window.location.reload(), 5000);
 	} finally {
 		dataLoading.value = false;
 	}
