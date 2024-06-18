@@ -94,9 +94,15 @@ async function refresh() {
 function editCourses(email: string) {
 	currEditEmail.value = email;
 	editing.value[email] = true;
-	currEditCourses.value = JSON.stringify(
-		userData.value.find((v) => v.email === email)!.courses
-	);
+
+	const user = userData.value.find((v) => v.email === email);
+	if (user) {
+		currEditCourses.value = JSON.stringify(
+			user.courses.length ? user.courses : ['']
+		);
+	} else {
+		currEditCourses.value = JSON.stringify(['']);
+	}
 }
 
 function saveEdit() {
