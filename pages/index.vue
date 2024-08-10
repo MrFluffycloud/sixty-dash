@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import type { User } from '~/types';
 import { ref, computed, onMounted } from 'vue';
+
+const supabase = useSupabaseClient();
+const user = useSupabaseUser();
 
 const email = ref<string>('');
 const phone = ref<string>('');
@@ -13,7 +15,7 @@ const editing = ref<Record<string, boolean>>({});
 const dataLoading = ref(false);
 const isAppLoading = ref(true);
 
-const userData = ref<User[]>([]);
+const userData = ref<any[]>([]);
 const filteredUserData = computed(() => {
 	const fEmail = userData.value.filter(
 		(v) =>
@@ -80,8 +82,24 @@ function clear() {
 async function refresh() {
 	dataLoading.value = true;
 	try {
-		const users = await $fetch('/api/users');
-		userData.value = users;
+		const { data, error } = await supabase.auth.getUser();
+
+		if (error) throw error;
+		if (data) {
+			const userProfile = data.user;
+			userData.value = [
+				{
+					userid: userProfile.id,
+					email: userProfile.email,
+					phone: userProfile.user_metadata.phone,
+					firstName: userProfile.user_metadata.first_name,
+					lastName: userProfile.user_metadata.last_name,
+					age: userProfile.user_metadata.age,
+					country: userProfile.user_metadata.country,
+					courses: await fetchUserCourses(userProfile.id),
+				},
+			];
+		}
 		isAppLoading.value = false;
 	} catch (e) {
 		console.error(`Error while refreshing: ${e.message || e}`);
@@ -89,6 +107,20 @@ async function refresh() {
 	} finally {
 		dataLoading.value = false;
 	}
+}
+
+async function fetchUserCourses(userid: string) {
+	const { data, error } = await supabase
+		.from('user_courses')
+		.select('courses')
+		.eq('userid', userid);
+
+	if (error) {
+		console.error('Error fetching courses:', error.message);
+		return [];
+	}
+
+	return data.length > 0 ? data[0].courses : [];
 }
 
 function editCourses(email: string) {
@@ -105,30 +137,34 @@ function editCourses(email: string) {
 	}
 }
 
-function saveEdit() {
+async function saveEdit() {
 	editSaving.value = true;
 	const newUser = userData.value.find((v) => v.email === currEditEmail.value)!;
-	newUser.courses = JSON.parse(currEditCourses.value) as string[];
+	const newCourses = JSON.parse(currEditCourses.value) as string[];
 
-	$fetch('/api/user', {
-		method: 'POST',
-		body: newUser,
-	})
-		.then(() => {
-			editing.value[currEditEmail.value] = false;
-		})
-		.catch(() => {
+	try {
+		const { error } = await supabase
+			.from('user_courses')
+			.update({ courses: newCourses })
+			.eq('userid', newUser.userid);
+
+		if (error) {
 			editErr.value = 'Error while saving. Check network tab for details.';
-		})
-		.finally(() => {
-			editSaving.value = false;
-		});
-
-	refresh();
+		} else {
+			editing.value[currEditEmail.value] = false;
+		}
+	} catch (error) {
+		console.error('Error updating courses:', error.message);
+		editErr.value = 'Error while saving. Check network tab for details.';
+	} finally {
+		editSaving.value = false;
+		refresh();
+	}
 }
 
 function downloadCSV() {
 	const headers = [
+		'User ID',
 		'Email',
 		'Phone',
 		'First Name',
@@ -138,13 +174,14 @@ function downloadCSV() {
 		'Courses',
 	];
 	const rows = filteredUserData.value.map((user) => [
+		user.userid,
 		user.email,
 		user.phone,
 		user.firstName,
 		user.lastName,
 		user.age,
 		user.country,
-		JSON.stringify(user.courses),
+		JSON.stringify(user.courses).replaceAll(',', ' ').replaceAll('[', '').replaceAll(']', ''),
 	]);
 
 	let csvContent =
@@ -230,9 +267,9 @@ onMounted(() => {
 					v-for="user in filteredUserData"
 					class="border border-gray-600 rounded-md flex flex-col gap-2 w-full h-max p-4"
 				>
-					<div class="flex items-center justify-between max-w-sm gap-4">
-						Mongo Id:
-						<UInput readonly :value="user._id"></UInput>
+					<div class="flex items-center justify-between max-w-md gap-4">
+						User Id:
+						<UInput readonly :value="user.userid" class="w-full"></UInput>
 					</div>
 					<div class="flex items-center justify-between max-w-sm gap-4">
 						Email:
