@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 
-const supabase = useSupabaseClient();
-const user = useSupabaseUser();
+const supabase = useSupabaseClient(); 
 
 const email = ref<string>('');
 const phone = ref<string>('');
