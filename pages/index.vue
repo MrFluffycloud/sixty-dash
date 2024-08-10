@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue'; 
 
-const supabase = useSupabaseClient(); 
+const supabase = useSupabaseClient();
 
 const email = ref<string>('');
 const phone = ref<string>('');
@@ -81,24 +81,12 @@ function clear() {
 async function refresh() {
 	dataLoading.value = true;
 	try {
-		const { data, error } = await supabase.auth.getUser();
+		const { data, error } = await supabase
+			.from('user_courses')
+			.select('*');  // Fetch all user data
 
 		if (error) throw error;
-		if (data) {
-			const userProfile = data.user;
-			userData.value = [
-				{
-					userid: userProfile.id,
-					email: userProfile.email,
-					phone: userProfile.user_metadata.phone,
-					firstName: userProfile.user_metadata.first_name,
-					lastName: userProfile.user_metadata.last_name,
-					age: userProfile.user_metadata.age,
-					country: userProfile.user_metadata.country,
-					courses: await fetchUserCourses(userProfile.id),
-				},
-			];
-		}
+		userData.value = data || [];
 		isAppLoading.value = false;
 	} catch (e) {
 		console.error(`Error while refreshing: ${e.message || e}`);
@@ -106,20 +94,6 @@ async function refresh() {
 	} finally {
 		dataLoading.value = false;
 	}
-}
-
-async function fetchUserCourses(userid: string) {
-	const { data, error } = await supabase
-		.from('user_courses')
-		.select('courses')
-		.eq('userid', userid);
-
-	if (error) {
-		console.error('Error fetching courses:', error.message);
-		return [];
-	}
-
-	return data.length > 0 ? data[0].courses : [];
 }
 
 function editCourses(email: string) {
@@ -145,7 +119,7 @@ async function saveEdit() {
 		const { error } = await supabase
 			.from('user_courses')
 			.update({ courses: newCourses })
-			.eq('userid', newUser.userid);
+			.eq('email', newUser.email);  // Assuming `email` is used as the identifier
 
 		if (error) {
 			editErr.value = 'Error while saving. Check network tab for details.';
@@ -163,7 +137,6 @@ async function saveEdit() {
 
 function downloadCSV() {
 	const headers = [
-		'User ID',
 		'Email',
 		'Phone',
 		'First Name',
@@ -173,14 +146,13 @@ function downloadCSV() {
 		'Courses',
 	];
 	const rows = filteredUserData.value.map((user) => [
-		user.userid,
 		user.email,
 		user.phone,
 		user.firstName,
 		user.lastName,
 		user.age,
 		user.country,
-		JSON.stringify(user.courses).replaceAll(',', ' ').replaceAll('[', '').replaceAll(']', ''),
+		JSON.stringify(user.courses),
 	]);
 
 	let csvContent =
