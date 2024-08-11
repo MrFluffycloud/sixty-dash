@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'; 
+import { ref, computed, onMounted } from 'vue';
 
 const supabase = useSupabaseClient();
 
@@ -7,7 +7,7 @@ const email = ref<string>('');
 const phone = ref<string>('');
 const firstName = ref<string>('');
 const lastName = ref<string>('');
-const age = ref<number>(0);
+const age = ref<number | null>(null);
 const country = ref<string>('');
 
 const editing = ref<Record<string, boolean>>({});
@@ -34,7 +34,9 @@ const filteredUserData = computed(() => {
 			!lastName.value ||
 			v.lastName.toLowerCase().includes(lastName.value.toLowerCase())
 	);
-	const fAge = fLastName.filter((v) => !age.value || v.age === age.value);
+	const fAge = fLastName.filter(
+		(v) => age.value === null || v.age === age.value
+	);
 	const fCountry = fAge.filter(
 		(v) =>
 			!country.value ||
@@ -74,26 +76,52 @@ function clear() {
 	phone.value = '';
 	firstName.value = '';
 	lastName.value = '';
-	age.value = 0;
+	age.value = null;
 	country.value = '';
 }
 
 async function refresh() {
 	dataLoading.value = true;
 	try {
-		const { data, error } = await supabase
+		const { data: userCoursesData, error: userCoursesError } = await supabase
 			.from('user_courses')
-			.select('*');  // Fetch all user data
+			.select(
+				'userid, email, phone, first_name, last_name, age, country, courses'
+			);
 
-		if (error) throw error;
-		userData.value = data || [];
+		if (userCoursesError) throw userCoursesError;
+
+		userData.value = userCoursesData.map((userCourse) => ({
+			userid: userCourse.userid,
+			email: userCourse.email || '',
+			phone: userCourse.phone || '',
+			firstName: userCourse.first_name || '',
+			lastName: userCourse.last_name || '',
+			age: userCourse.age || '',
+			country: userCourse.country || '',
+			courses: userCourse.courses || [],
+		}));
+
 		isAppLoading.value = false;
 	} catch (e) {
-		console.error(`Error while refreshing: ${e.message || e}`);
-		setInterval(() => window.location.reload(), 5000);
+		console.error(`Error while fetching users with courses: ${e.message || e}`);
 	} finally {
 		dataLoading.value = false;
 	}
+}
+
+async function fetchUserCourses(userid: string) {
+	const { data, error } = await supabase
+		.from('user_courses')
+		.select('courses')
+		.eq('userid', userid);
+
+	if (error) {
+		console.error('Error fetching courses:', error.message);
+		return [];
+	}
+
+	return data.length > 0 ? data[0].courses : [];
 }
 
 function editCourses(email: string) {
@@ -119,7 +147,7 @@ async function saveEdit() {
 		const { error } = await supabase
 			.from('user_courses')
 			.update({ courses: newCourses })
-			.eq('email', newUser.email);  // Assuming `email` is used as the identifier
+			.eq('userid', newUser.userid);
 
 		if (error) {
 			editErr.value = 'Error while saving. Check network tab for details.';
@@ -137,6 +165,7 @@ async function saveEdit() {
 
 function downloadCSV() {
 	const headers = [
+		'User ID',
 		'Email',
 		'Phone',
 		'First Name',
@@ -146,13 +175,17 @@ function downloadCSV() {
 		'Courses',
 	];
 	const rows = filteredUserData.value.map((user) => [
+		user.userid,
 		user.email,
 		user.phone,
 		user.firstName,
 		user.lastName,
 		user.age,
 		user.country,
-		JSON.stringify(user.courses),
+		JSON.stringify(user.courses)
+			.replaceAll(',', ' ')
+			.replaceAll('[', '')
+			.replaceAll(']', ''),
 	]);
 
 	let csvContent =
