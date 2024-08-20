@@ -6,8 +6,6 @@ export default defineNuxtConfig({
 		redirectOptions: {
 			login: '/',
 			callback: '/',
-			include: undefined,
-			exclude: ['*'],
 		},
 	},
 });
