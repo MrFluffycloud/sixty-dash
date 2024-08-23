@@ -46,6 +46,18 @@ const filteredUserData = computed(() => {
 	return fCountry;
 });
 
+const currentPage = ref(1);
+const itemsPerPage = 6;
+
+const totalPages = computed(() => {
+	return Math.ceil(filteredUserData.value.length / itemsPerPage);
+});
+
+const paginatedUserData = computed(() => {
+	const start = (currentPage.value - 1) * itemsPerPage;
+	return filteredUserData.value.slice(start, start + itemsPerPage);
+});
+
 const editErr = ref<string>('');
 const currEditEmail = ref<string>('');
 const currEditCourses = ref<string>('');
@@ -82,6 +94,7 @@ function clear() {
 
 async function refresh() {
 	dataLoading.value = true;
+	currentPage.value = 1;
 	try {
 		const { data: userCoursesData, error: userCoursesError } = await supabase
 			.from('user_courses')
@@ -139,29 +152,32 @@ function editCourses(email: string) {
 }
 
 async function saveEdit() {
-	editSaving.value = true;
-	const newUser = userData.value.find((v) => v.email === currEditEmail.value)!;
-	const newCourses = JSON.parse(currEditCourses.value) as string[];
+    editSaving.value = true;
+    const newUser = userData.value.find((v) => v.email === currEditEmail.value)!;
+    const newCourses = JSON.parse(currEditCourses.value) as string[];
 
-	try {
-		const { error } = await supabase
-			.from('user_courses')
-			.update({ courses: newCourses })
-			.eq('userid', newUser.userid);
+    try {
+        console.log("Saving courses:", newCourses);  // Log the courses being saved
+        const { error } = await supabase
+            .from('user_courses')
+            .update({ courses: newCourses })
+            .eq('userid', newUser.userid);
 
-		if (error) {
-			editErr.value = 'Error while saving. Check network tab for details.';
-		} else {
-			editing.value[currEditEmail.value] = false;
-		}
-	} catch (error) {
-		console.error('Error updating courses:', error.message);
-		editErr.value = 'Error while saving. Check network tab for details.';
-	} finally {
-		editSaving.value = false;
-		refresh();
-	}
+        if (error) {
+            console.error("Supabase error:", error);  // Log Supabase errors
+            editErr.value = 'Error while saving. Check network tab for details.';
+        } else {
+            editing.value[currEditEmail.value] = false;
+            refresh();  // Refresh data after successful save
+        }
+    } catch (error) {
+        console.error('Error updating courses:', error.message);
+        editErr.value = 'Error while saving. Check network tab for details.';
+    } finally {
+        editSaving.value = false;
+    }
 }
+
 
 function downloadCSV() {
 	const headers = [
@@ -174,7 +190,7 @@ function downloadCSV() {
 		'Country',
 		'Courses',
 	];
-	const rows = filteredUserData.value.map((user) => [
+	const rows = paginatedUserData.value.map((user) => [
 		user.userid,
 		user.email,
 		user.phone,
@@ -213,7 +229,6 @@ onMounted(() => {
 		v-if="isAppLoading"
 		class="flex items-center justify-center min-h-screen"
 	>
-		<!-- Add your loading spinner or message here -->
 		<div>Loading...</div>
 	</div>
 	<div
@@ -263,12 +278,16 @@ onMounted(() => {
 			</div>
 		</div>
 		<div class="grow p-4 rounded-md border border-dashed border-primary">
-			<div v-if="!filteredUserData.length && dataLoading">Loading...</div>
-			<div v-else-if="!filteredUserData.length">No data</div>
+			<div v-if="!paginatedUserData.length && dataLoading">Loading...</div>
+			<div v-else-if="!paginatedUserData.length">No data</div>
 			<div v-else class="w-full h-full flex flex-col gap-4">
-				<div class="ml-2 text-xl">{{ filteredUserData.length }} results</div>
+				<div class="ml-2 text-xl">
+					{{ paginatedUserData.length }} results out of
+					{{ filteredUserData.length }}
+				</div>
 				<div
-					v-for="user in filteredUserData"
+					v-for="user in paginatedUserData"
+					:key="user.userid"
 					class="border border-gray-600 rounded-md flex flex-col gap-2 w-full h-max p-4"
 				>
 					<div class="flex items-center justify-between max-w-md gap-4">
@@ -335,6 +354,20 @@ onMounted(() => {
 							</div>
 						</UCard>
 					</UModal>
+				</div>
+				<div class="flex justify-between mt-4">
+					<UButton :disabled="currentPage === 1" @click="currentPage -= 1">
+						Previous
+					</UButton>
+
+					<span>Page {{ currentPage }} of {{ totalPages }}</span>
+
+					<UButton
+						:disabled="currentPage === totalPages"
+						@click="currentPage += 1"
+					>
+						Next
+					</UButton>
 				</div>
 			</div>
 		</div>
